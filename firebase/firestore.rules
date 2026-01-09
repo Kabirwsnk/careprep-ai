@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the document (by userId field)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if the incoming data has the correct userId
+    function hasValidUserId() {
+      return request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Check if existing document belongs to current user
+    function ownsExistingDoc() {
+      return resource.data.userId == request.auth.uid;
+    }
+
+    // ============================================
+    // COLLECTION RULES
+    // ============================================
+
+    // Users collection - users can only read/write their own profile
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Symptoms collection - users can only access their own symptoms
+    match /symptoms/{symptomId} {
+      // Allow read if authenticated and document belongs to user
+      allow read: if isAuthenticated() && ownsExistingDoc();
+      
+      // Allow create if authenticated and userId matches
+      allow create: if isAuthenticated() && hasValidUserId();
+      
+      // Allow update/delete if authenticated and owns the document
+      allow update, delete: if isAuthenticated() && ownsExistingDoc();
+    }
+
+    // Documents collection - users can only access their own documents
+    match /documents/{documentId} {
+      allow read: if isAuthenticated() && ownsExistingDoc();
+      allow create: if isAuthenticated() && hasValidUserId();
+      allow update, delete: if isAuthenticated() && ownsExistingDoc();
+    }
+
+    // Visit Summaries collection - users can only access their own summaries
+    match /visitSummaries/{summaryId} {
+      allow read: if isAuthenticated() && ownsExistingDoc();
+      allow create: if isAuthenticated() && hasValidUserId();
+      allow update, delete: if isAuthenticated() && ownsExistingDoc();
+    }
+
+    // Chat History collection - users can only access their own chat history
+    match /chatHistory/{chatId} {
+      allow read: if isAuthenticated() && ownsExistingDoc();
+      allow create: if isAuthenticated() && hasValidUserId();
+      allow update, delete: if isAuthenticated() && ownsExistingDoc();
+    }
+
+    // Health check collection (for backend health endpoint)
+    match /_health/{docId} {
+      allow read: if true;
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

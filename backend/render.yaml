@@ -1,0 +1,28 @@
+# Render.com deployment configuration for Node.js backend
+# https://render.com/docs/deploy-node-express-app
+
+services:
+  - type: web
+    name: careprep-ai-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: FRONTEND_URL
+        sync: false  # Set manually in Render dashboard
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: AI_SERVICE_URL
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: false

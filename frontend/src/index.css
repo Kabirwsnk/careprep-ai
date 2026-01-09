@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 50%, #caf0f8 100%);
+  min-height: 100vh;
+}
+
+/* Glass morphism effects */
+.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(2, 62, 138, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #e0f2fe;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0077b6;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #023e8a;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.4s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-gradient-to-r from-medical-blue to-medical-teal text-white font-medium py-3 px-6 rounded-xl 
+         shadow-soft hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300;
+}
+
+.btn-secondary {
+  @apply bg-white text-medical-blue font-medium py-3 px-6 rounded-xl border-2 border-medical-blue
+         hover:bg-medical-light transition-all duration-300;
+}
+
+.btn-danger {
+  @apply bg-gradient-to-r from-accent-coral to-red-500 text-white font-medium py-3 px-6 rounded-xl 
+         shadow-soft hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300;
+}
+
+/* Card styles */
+.card {
+  @apply glass rounded-2xl shadow-soft p-6 transition-all duration-300 hover:shadow-glass;
+}
+
+.card-interactive {
+  @apply card cursor-pointer hover:-translate-y-1;
+}
+
+/* Input styles */
+.input-field {
+  @apply w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-teal 
+         focus:outline-none focus:ring-2 focus:ring-medical-teal/20 transition-all duration-300
+         bg-white/80 backdrop-blur-sm;
+}
+
+/* Medical disclaimer styling */
+.disclaimer {
+  @apply bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-accent-amber 
+         p-4 rounded-r-xl text-sm text-gray-700;
+}
+
+/* Chat bubble styles */
+.chat-bubble-user {
+  @apply bg-gradient-to-r from-medical-blue to-medical-teal text-white rounded-2xl rounded-br-md 
+         p-4 max-w-[80%] ml-auto shadow-soft;
+}
+
+.chat-bubble-ai {
+  @apply bg-white text-gray-800 rounded-2xl rounded-bl-md p-4 max-w-[80%] mr-auto shadow-soft 
+         border border-gray-100;
+}
+
+/* Severity indicator colors */
+.severity-low { @apply bg-emerald-100 text-emerald-700 border-emerald-300; }
+.severity-medium { @apply bg-amber-100 text-amber-700 border-amber-300; }
+.severity-high { @apply bg-red-100 text-red-700 border-red-300; }
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin rounded-full h-8 w-8 border-4 border-medical-light border-t-medical-blue;
+}

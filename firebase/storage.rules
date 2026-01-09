@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Documents folder - users can only access their own documents
+    match /documents/{userId}/{allPaths=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Profile images - users can only access their own profile images
+    match /profiles/{userId}/{allPaths=**} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Temporary uploads - authenticated users can upload
+    match /temp/{allPaths=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
