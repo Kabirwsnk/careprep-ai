@@ -1,7 +1,8 @@
-import cors from 'cors';
 import express from 'express';
-import dotenv from 'dotenv';
+import cors from 'cors';
 import authRoutes from './routes/auth.js';
+import dotenv from 'dotenv';
+
 import symptomsRoutes from './routes/symptoms.js';
 import documentsRoutes from './routes/documents.js';
 import aiRoutes from './routes/ai.js';
@@ -12,7 +13,7 @@ import { db } from './config/firebaseAdmin.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000;
 
 // CORS configuration - supports multiple origins for dev and production
 const allowedOrigins = [
@@ -26,7 +27,7 @@ app.use(cors({
         "http://localhost:5173",
         "https://careprep-ai-frontend.vercel.app"
     ],
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));

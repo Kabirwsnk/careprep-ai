@@ -1,7 +1,8 @@
 import express from 'express';
-import { verifyToken } from '../middleware/authMiddleware.js';
-import { db } from '../config/firebaseAdmin.js';
 import axios from 'axios';
+import { verifyToken } from "../middleware/authMiddleware.js";
+import { db } from '../config/firebaseAdmin.js';
+
 async function callAI(payload, retries = 2) {
     try {
         return await axios.post(`${AI_SERVICE_URL}/chat`, payload, { timeout: 15000 });
@@ -50,12 +51,12 @@ router.post('/summarize', verifyToken, async (req, res) => {
         }
 
         // Call AI service to process document
-        const aiResponse = await callAI({
-            message,
-            mode,
-            context: context || {},
+        const aiResponse = await axios.post(`${AI_SERVICE_URL}/process`, {
+            documentId,
+            fileData,
+            fileName: docData.fileName || 'document',
             userId
-        });
+        }, { timeout: 60000 });
 
         const { processedText, doctorSummary, patientSummary, medications, followUps, redFlags } = aiResponse.data;
 
@@ -104,97 +105,84 @@ router.post('/summarize', verifyToken, async (req, res) => {
 });
 
 // POST /ai/chat - Chat with AI assistant
-router.post('/chat', verifyToken, async (req, res) => {
+router.post("/chat", verifyToken, async (req, res) => {
     try {
         const { message, mode, context } = req.body;
-        const userId = req.user.uid;
 
-        if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
-        }
+        const response = await axios.post(
+            "https://careprep-ai-service.onrender.com/chat", // Your AI service endpoint
+            { message, mode, context }
+        );
 
-        if (!['pre_visit', 'post_visit'].includes(mode)) {
-            return res.status(400).json({ error: 'Mode must be pre_visit or post_visit' });
-        }
+        res.json(response.data);
+    } catch (err) {
+        console.error("Chat error:", err.response?.data || err.message);
 
-        // Call AI service for chat response
-        async function callAI(payload, retries = 2) {
-            try {
-                return await axios.post(`${AI_SERVICE_URL}/chat`, payload, { timeout: 15000 });
-            } catch (err) {
-                if (err.response?.status === 429 && retries > 0) {
-                    console.warn("Rate limited. Retrying...");
-                    await new Promise(r => setTimeout(r, 5000));
-                    return callAI(payload, retries - 1);
-                }
-                throw err;
-            }
-        }
-
-        // Save chat to history in Firestore
-        await db.collection('chatHistory').add({
-            userId,
-            mode,
-            question: message,
-            aiResponse: aiResponse.data.response,
-            createdAt: new Date().toISOString()
-        });
-
-        res.json({
-            success: true,
-            response: aiResponse.data.response
-        });
-    } catch (error) {
-        if (error.response?.status === 429) {
+        if (err.response?.status === 429) {
             return res.status(429).json({
                 error: "Too many requests. Please wait 1 minute and try again."
             });
         }
 
-        console.error("Chat error:", error.message);
-
-        if (error.code === 'ECONNREFUSED') {
-            const fallbackResponse = "I apologize, but I'm currently unable to process your request. The AI service is temporarily unavailable. Please try again in a few moments.";
-            return res.json({ success: true, response: fallbackResponse });
-        }
-
         res.status(500).json({ error: "Chat service failed" });
     }
+});
 
-    // GET /ai/summary - Get latest AI summary for user
-    router.get('/summary', verifyToken, async (req, res) => {
-        try {
-            const userId = req.user.uid;
+// Example symptoms list route
+router.get("/symptoms/list", verifyToken, async (req, res) => {
+    try {
+        // Replace this with your real DB call
+        const symptoms = [
+            "Fever",
+            "Cough",
+            "Headache",
+            "Fatigue",
+            "Sore throat",
+            "Shortness of breath"
+        ];
 
-            const snapshot = await db.collection('visitSummaries')
-                .where('userId', '==', userId)
-                .orderBy('createdAt', 'desc')
-                .limit(1)
-                .get();
+        res.json(symptoms);
 
-            if (snapshot.empty) {
-                return res.json({ summary: null });
-            }
+    } catch (err) {
+        console.error("Symptoms list error:", err.message, err.stack);
+        res.status(500).json({ error: "Failed to fetch symptoms" });
+    }
+});
 
-            const doc = snapshot.docs[0];
-            const data = doc.data();
+// GET /ai/summary - Get latest AI summary for user
+router.get('/summary', verifyToken, async (req, res) => {
+    try {
+        const userId = req.user.uid;
 
-            res.json({
-                summary: {
-                    id: doc.id,
-                    documentId: data.documentId,
-                    doctorSummary: data.doctorSummary,
-                    patientSummary: data.patientSummary,
-                    medications: data.medications,
-                    followUps: data.followUps,
-                    redFlags: data.redFlags,
-                    createdAt: data.createdAt
-                }
-            });
-        } catch (error) {
-            console.error('Error fetching AI summary:', error);
-            res.status(500).json({ error: 'Failed to fetch summary' });
+        const snapshot = await db.collection('visitSummaries')
+            .where('userId', '==', userId)
+            .orderBy('createdAt', 'desc')
+            .limit(1)
+            .get();
+
+        if (snapshot.empty) {
+            return res.json({ summary: null });
         }
-    });
 
-    export default router;
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+
+        res.json({
+            summary: {
+                id: doc.id,
+                documentId: data.documentId,
+                doctorSummary: data.doctorSummary,
+                patientSummary: data.patientSummary,
+                medications: data.medications,
+                followUps: data.followUps,
+                redFlags: data.redFlags,
+                createdAt: data.createdAt
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching AI summary:', error);
+        res.status(500).json({ error: 'Failed to fetch summary' });
+    }
+});
+
+export default router;

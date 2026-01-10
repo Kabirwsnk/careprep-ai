@@ -1,31 +1,18 @@
-import { auth } from '../config/firebaseAdmin.js';
+import admin from "../config/firebaseAdmin.js";
 
-export const verifyToken = async (req, res, next) => {
+export async function verifyToken(req, res, next) {
     const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'No authorization token provided' });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Missing authorization token" });
     }
 
-    const token = authHeader.split('Bearer ')[1];
-
+    const token = authHeader.split(" ")[1];
     try {
-        const decodedToken = await auth.verifyIdToken(token);
-        req.user = {
-            uid: decodedToken.uid,
-            email: decodedToken.email,
-            name: decodedToken.name || decodedToken.email?.split('@')[0]
-        };
+        const decoded = await admin.auth().verifyIdToken(token);
+        req.user = decoded;
         next();
-    } catch (error) {
-        console.error('Token verification error:', error);
-
-        if (error.code === 'auth/id-token-expired') {
-            return res.status(401).json({ error: 'Token expired. Please login again.' });
-        }
-
-        return res.status(401).json({ error: 'Invalid authorization token' });
+    } catch (err) {
+        console.error("Token verification failed:", err.message);
+        return res.status(401).json({ error: "Invalid authorization token" });
     }
-};
-
-export default verifyToken;
+}
