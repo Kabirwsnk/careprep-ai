@@ -48,9 +48,9 @@ router.get('/list', verifyToken, async (req, res) => {
         const userId = req.user.uid;
         const limit = parseInt(req.query.limit) || 100;
 
+        // Simple query without orderBy to avoid composite index requirement
         const snapshot = await db.collection('symptoms')
             .where('userId', '==', userId)
-            .orderBy('date', 'asc')
             .limit(limit)
             .get();
 
@@ -59,10 +59,13 @@ router.get('/list', verifyToken, async (req, res) => {
             ...doc.data()
         }));
 
+        // Sort client-side by date
+        symptoms.sort((a, b) => new Date(a.date) - new Date(b.date));
+
         res.json({ symptoms });
     } catch (error) {
-        console.error('Error fetching symptoms:', error);
-        res.status(500).json({ error: 'Failed to fetch symptoms' });
+        console.error('Error fetching symptoms:', error.message);
+        res.status(500).json({ error: 'Failed to fetch symptoms', details: error.message });
     }
 });
 
