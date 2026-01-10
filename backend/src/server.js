@@ -9,7 +9,7 @@ import symptomsRoutes from './routes/symptoms.js';
 import documentsRoutes from './routes/documents.js';
 import aiRoutes from './routes/ai.js';
 import visitSummariesRoutes from './routes/visitSummaries.js';
-import { db } from './config/firebaseAdmin.js';
+import { db, isFirebaseReady } from './config/firebaseAdmin.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -47,6 +47,18 @@ app.use((req, res, next) => {
 
 // Health check
 app.get('/health', async (req, res) => {
+    const firebaseReady = isFirebaseReady();
+
+    if (!firebaseReady || !db) {
+        console.error('Health check: Firebase not initialized');
+        return res.status(503).json({
+            status: 'unhealthy',
+            error: 'Firebase not initialized - check environment variables',
+            timestamp: new Date().toISOString(),
+            firebaseReady: false
+        });
+    }
+
     try {
         // Check Firestore connection by reading a test doc
         const healthDoc = await db.collection('_health').doc('check').get();
@@ -54,6 +66,7 @@ app.get('/health', async (req, res) => {
             status: 'healthy',
             timestamp: new Date().toISOString(),
             database: 'Firestore connected',
+            firebaseReady: true,
             environment: process.env.NODE_ENV || 'development'
         });
     } catch (error) {
@@ -61,7 +74,8 @@ app.get('/health', async (req, res) => {
         res.status(503).json({
             status: 'unhealthy',
             error: error.message,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            firebaseReady: true
         });
     }
 });
