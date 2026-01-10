@@ -14,20 +14,27 @@ import { db } from './config/firebaseAdmin.js';
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// CORS configuration - supports multiple origins for dev and production
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:3000',
+    'https://careprep-ai.web.app',
+    'https://careprep-ai-frontend.vercel.app',
     process.env.FRONTEND_URL
 ].filter(Boolean);
 
 app.use(cors({
-    origin: [
-        "http://localhost:5173",
-        "https://careprep-ai-frontend.vercel.app"
-    ],
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.indexOf(origin) === -1) {
+            const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
+    credentials: true,
+    optionsSuccessStatus: 200
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -42,18 +49,19 @@ app.use((req, res, next) => {
 app.get('/health', async (req, res) => {
     try {
         // Check Firestore connection by reading a test doc
-        await db.collection('_health').doc('check').get();
+        const healthDoc = await db.collection('_health').doc('check').get();
         res.json({
             status: 'healthy',
             timestamp: new Date().toISOString(),
-            database: 'Firestore connected'
+            database: 'Firestore connected',
+            environment: process.env.NODE_ENV || 'development'
         });
     } catch (error) {
-        // Even if the doc doesn't exist, connection is working if no error
-        res.json({
-            status: 'healthy',
-            timestamp: new Date().toISOString(),
-            database: 'Firestore connected'
+        console.error('Health check failed:', error.message);
+        res.status(503).json({
+            status: 'unhealthy',
+            error: error.message,
+            timestamp: new Date().toISOString()
         });
     }
 });

@@ -6,27 +6,37 @@ dotenv.config();
 if (!admin.apps.length) {
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY
-    ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n").trim()
-    : undefined;
+  let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
-  if (!projectId || !clientEmail || !privateKey) {
-    console.error("❌ Firebase env vars missing:");
-    console.error("FIREBASE_PROJECT_ID:", !!projectId);
-    console.error("FIREBASE_CLIENT_EMAIL:", !!clientEmail);
-    console.error("FIREBASE_PRIVATE_KEY:", !!privateKey);
-    throw new Error("Firebase credentials not configured.");
+  if (privateKey) {
+    // Handle both raw newlines and escaped newlines (\n)
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    // Ensure the key has proper header and footer
+    if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+      console.warn("⚠️ FIREBASE_PRIVATE_KEY missing standard header");
+    }
   }
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
-  });
-
-  console.log("✅ Firebase Admin initialized");
+  if (!projectId || !clientEmail || !privateKey) {
+    console.error("❌ Firebase environment variables missing or incomplete:");
+    console.log("FIREBASE_PROJECT_ID:", projectId ? "✅ Set" : "❌ Missing");
+    console.log("FIREBASE_CLIENT_EMAIL:", clientEmail ? "✅ Set" : "❌ Missing");
+    console.log("FIREBASE_PRIVATE_KEY:", privateKey ? "✅ Set" : "❌ Missing");
+    // Don't throw here to allow health check to report the error
+  } else {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey,
+        }),
+      });
+      console.log("✅ Firebase Admin initialized successfully");
+    } catch (initError) {
+      console.error("❌ Firebase Admin initialization failed:", initError.message);
+    }
+  }
 }
 
 const auth = admin.auth();

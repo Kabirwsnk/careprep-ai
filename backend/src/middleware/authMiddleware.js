@@ -8,11 +8,17 @@ export async function verifyToken(req, res, next) {
 
     const token = authHeader.split(" ")[1];
     try {
-        const decoded = await admin.auth().verifyIdToken(token);
-        req.user = decoded;
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        req.user = decodedToken;
         next();
-    } catch (err) {
-        console.error("Token verification failed:", err.message);
-        return res.status(401).json({ error: "Invalid authorization token" });
+    } catch (error) {
+        console.error("❌ Token verification failed:", error.message);
+        if (error.code === 'auth/id-token-expired') {
+            console.warn("Token expired for request to:", req.path);
+        }
+        return res.status(401).json({
+            error: "Unauthorized: Invalid token",
+            details: error.message
+        });
     }
 }
