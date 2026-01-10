@@ -2,6 +2,18 @@ import express from 'express';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { db } from '../config/firebaseAdmin.js';
 import axios from 'axios';
+async function callAI(payload, retries = 2) {
+    try {
+        return await axios.post(`${AI_SERVICE_URL}/chat`, payload, { timeout: 15000 });
+    } catch (err) {
+        if (err.response?.status === 429 && retries > 0) {
+            console.warn("Rate limited. Retrying...");
+            await new Promise(r => setTimeout(r, 5000));
+            return callAI(payload, retries - 1);
+        }
+        throw err;
+    }
+}
 import fs from 'fs';
 import path from 'path';
 
@@ -38,11 +50,11 @@ router.post('/summarize', verifyToken, async (req, res) => {
         }
 
         // Call AI service to process document
-        const aiResponse = await axios.post(`${AI_SERVICE_URL}/process/document`, {
-            fileData: fileData,
-            fileType: docData.fileType,
-            fileName: docData.fileName,
-            filePath: docData.filePath
+        const aiResponse = await callAI({
+            message,
+            mode,
+            context: context || {},
+            userId
         });
 
         const { processedText, doctorSummary, patientSummary, medications, followUps, redFlags } = aiResponse.data;
@@ -106,12 +118,18 @@ router.post('/chat', verifyToken, async (req, res) => {
         }
 
         // Call AI service for chat response
-        const aiResponse = await axios.post(`${AI_SERVICE_URL}/chat`, {
-            message,
-            mode,
-            context: context || {},
-            userId
-        });
+        async function callAI(payload, retries = 2) {
+            try {
+                return await axios.post(`${AI_SERVICE_URL}/chat`, payload, { timeout: 15000 });
+            } catch (err) {
+                if (err.response?.status === 429 && retries > 0) {
+                    console.warn("Rate limited. Retrying...");
+                    await new Promise(r => setTimeout(r, 5000));
+                    return callAI(payload, retries - 1);
+                }
+                throw err;
+            }
+        }
 
         // Save chat to history in Firestore
         await db.collection('chatHistory').add({
