@@ -18,10 +18,12 @@ const UploadNotes = () => {
         'image/jpg',
         'text/csv',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel'
+        'application/vnd.ms-excel',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     ];
 
-    const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'csv', 'xlsx', 'xls'];
+    const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'csv', 'xlsx', 'xls', 'doc', 'docx'];
 
     useEffect(() => {
         fetchDocuments();
@@ -177,8 +179,8 @@ const UploadNotes = () => {
                             {/* Drop Zone */}
                             <div
                                 className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-300 ${dragActive
-                                        ? 'border-medical-teal bg-medical-light/50 scale-[1.02]'
-                                        : 'border-gray-300 hover:border-medical-blue hover:bg-gray-50'
+                                    ? 'border-medical-teal bg-medical-light/50 scale-[1.02]'
+                                    : 'border-gray-300 hover:border-medical-blue hover:bg-gray-50'
                                     }`}
                                 onDragEnter={handleDrag}
                                 onDragLeave={handleDrag}
@@ -202,12 +204,12 @@ const UploadNotes = () => {
                                             <input
                                                 type="file"
                                                 className="hidden"
-                                                accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls"
+                                                accept=".pdf,.jpg,.jpeg,.png,.csv,.xlsx,.xls,.doc,.docx"
                                                 onChange={handleFileInput}
                                             />
                                         </label>
                                         <p className="text-sm text-gray-500 mt-4">
-                                            Supported: PDF, Images (JPG, PNG), CSV, Excel (XLSX, XLS)
+                                            Supported: PDF, Images (JPG, PNG), Word (DOC, DOCX), CSV, Excel
                                         </p>
                                         <p className="text-xs text-gray-400 mt-1">Max file size: 10MB</p>
                                     </>

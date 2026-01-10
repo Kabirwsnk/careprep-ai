@@ -1,13 +1,25 @@
 import express from 'express';
 import axios from 'axios';
 import { verifyToken } from "../middleware/authMiddleware.js";
-import { db } from '../config/firebaseAdmin.js';
+import { db, isFirebaseReady } from '../config/firebaseAdmin.js';
 import fs from 'fs';
 import path from 'path';
 
 const router = express.Router();
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5000';
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+// Middleware to check if Firebase is ready
+const checkFirebase = (req, res, next) => {
+    if (!isFirebaseReady() || !db) {
+        console.error('❌ Firebase not initialized - cannot process AI request');
+        return res.status(503).json({
+            error: 'Database service unavailable',
+            details: 'Firebase is not properly initialized. Please check server configuration.'
+        });
+    }
+    next();
+};
 
 // OpenRouter fallback function for chat
 async function chatWithOpenRouter(message, mode, context) {
@@ -200,7 +212,7 @@ Format your response clearly with these sections.`;
 }
 
 // POST /ai/summarize - Process and summarize a document (with OpenRouter fallback)
-router.post('/summarize', verifyToken, async (req, res) => {
+router.post('/summarize', verifyToken, checkFirebase, async (req, res) => {
     try {
         const { documentId } = req.body;
         const userId = req.user.uid;
@@ -425,7 +437,7 @@ router.get("/symptoms/list", verifyToken, async (req, res) => {
 });
 
 // GET /ai/summary - Get latest AI summary for user
-router.get('/summary', verifyToken, async (req, res) => {
+router.get('/summary', verifyToken, checkFirebase, async (req, res) => {
     try {
         const userId = req.user.uid;
 

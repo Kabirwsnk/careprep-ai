@@ -4,9 +4,21 @@ import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyToken } from '../middleware/authMiddleware.js';
-import { db } from '../config/firebaseAdmin.js';
+import { db, isFirebaseReady } from '../config/firebaseAdmin.js';
 
 const router = express.Router();
+
+// Middleware to check if Firebase is ready
+const checkFirebase = (req, res, next) => {
+    if (!isFirebaseReady() || !db) {
+        console.error('❌ Firebase not initialized - cannot process documents request');
+        return res.status(503).json({
+            error: 'Database service unavailable',
+            details: 'Firebase is not properly initialized. Please check server configuration.'
+        });
+    }
+    next();
+};
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), 'uploads');
@@ -43,13 +55,15 @@ const upload = multer({
             'image/jpg',
             'text/csv',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-excel'
+            'application/vnd.ms-excel',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         ];
 
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Invalid file type. Allowed: PDF, Images, CSV, Excel'));
+            cb(new Error('Invalid file type. Allowed: PDF, Images, CSV, Excel, Word Documents (.doc, .docx)'));
         }
     }
 });
@@ -68,7 +82,7 @@ const handleMulterError = (err, req, res, next) => {
 };
 
 // POST /documents/upload - Upload a document
-router.post('/upload', verifyToken, (req, res, next) => {
+router.post('/upload', verifyToken, checkFirebase, (req, res, next) => {
     upload.single('file')(req, res, (err) => {
         if (err instanceof multer.MulterError) {
             if (err.code === 'LIMIT_FILE_SIZE') {
@@ -120,7 +134,7 @@ router.post('/upload', verifyToken, (req, res, next) => {
 });
 
 // GET /documents/list - Get user's documents
-router.get('/list', verifyToken, async (req, res) => {
+router.get('/list', verifyToken, checkFirebase, async (req, res) => {
     try {
         const userId = req.user.uid;
 
@@ -154,7 +168,7 @@ router.get('/list', verifyToken, async (req, res) => {
 });
 
 // GET /documents/:id - Get specific document
-router.get('/:id', verifyToken, async (req, res) => {
+router.get('/:id', verifyToken, checkFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.uid;
@@ -179,7 +193,7 @@ router.get('/:id', verifyToken, async (req, res) => {
 });
 
 // GET /documents/:id/file - Download/serve file
-router.get('/:id/file', verifyToken, async (req, res) => {
+router.get('/:id/file', verifyToken, checkFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.uid;
@@ -210,7 +224,7 @@ router.get('/:id/file', verifyToken, async (req, res) => {
 });
 
 // DELETE /documents/:id - Delete a document
-router.delete('/:id', verifyToken, async (req, res) => {
+router.delete('/:id', verifyToken, checkFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.uid;
