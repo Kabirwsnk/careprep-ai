@@ -100,42 +100,60 @@ router.post('/summary', verifyToken, async (req, res) => {
     try {
         const userId = req.user.uid;
 
-        // Fetch recent symptoms
+        // Simple query without orderBy to avoid composite index requirement
         const snapshot = await db.collection('symptoms')
             .where('userId', '==', userId)
-            .orderBy('date', 'desc')
             .limit(30)
             .get();
 
         const symptoms = snapshot.docs.map(doc => doc.data());
+
+        // Sort client-side by date (descending - most recent first)
+        symptoms.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         if (symptoms.length === 0) {
             return res.status(400).json({ error: 'No symptoms to summarize' });
         }
 
         // Call AI service to generate summary
-        const aiResponse = await axios.post(`${AI_SERVICE_URL}/summarize/symptoms`, {
-            symptoms: symptoms
-        });
+        try {
+            const aiResponse = await axios.post(`${AI_SERVICE_URL}/summarize/symptoms`, {
+                symptoms: symptoms
+            }, { timeout: 30000 });
 
-        res.json({
-            success: true,
-            summary: aiResponse.data.summary
-        });
-    } catch (error) {
-        console.error('Error generating symptom summary:', error);
-
-        // Fallback summary if AI service is unavailable
-        if (error.code === 'ECONNREFUSED') {
             res.json({
                 success: true,
-                summary: `You have logged symptoms over the past period. Please review your symptom timeline and discuss the patterns with your healthcare provider.
-        
-Note: AI summary service is currently unavailable. Please ensure the Python AI service is running.`
+                summary: aiResponse.data.summary
             });
-        } else {
-            res.status(500).json({ error: 'Failed to generate summary' });
+        } catch (aiError) {
+            console.warn('AI service unavailable for symptom summary:', aiError.message);
+
+            // Fallback summary when AI service is unavailable
+            const symptomList = symptoms.slice(0, 10).map(s =>
+                `• ${s.date}: ${s.symptom} (Severity: ${s.severity}/10)${s.notes ? ` - ${s.notes}` : ''}`
+            ).join('\n');
+
+            const fallbackSummary = `**Symptom Summary for Your Doctor**
+
+You have logged ${symptoms.length} symptom(s). Here's a summary to share with your healthcare provider:
+
+${symptomList}
+
+**Next Steps:**
+• Discuss these symptoms with your doctor
+• Mention any patterns you've noticed
+• Ask about possible causes and treatments
+
+⚠️ DISCLAIMER: This summary is for informational purposes only. Always consult your healthcare provider for medical advice.`;
+
+            res.json({
+                success: true,
+                summary: fallbackSummary
+            });
         }
+    } catch (error) {
+        console.error('Error generating symptom summary:', error.message);
+        res.status(500).json({ error: 'Failed to generate summary', details: error.message });
     }
 });
 

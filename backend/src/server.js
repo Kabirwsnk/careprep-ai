@@ -1,16 +1,15 @@
+import dotenv from 'dotenv';
+// Load environment variables immediately
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.js';
-import dotenv from 'dotenv';
-
 import symptomsRoutes from './routes/symptoms.js';
 import documentsRoutes from './routes/documents.js';
 import aiRoutes from './routes/ai.js';
 import visitSummariesRoutes from './routes/visitSummaries.js';
 import { db } from './config/firebaseAdmin.js';
-
-// Load environment variables
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

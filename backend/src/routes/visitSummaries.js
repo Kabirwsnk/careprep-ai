@@ -9,9 +9,10 @@ router.get('/list', verifyToken, async (req, res) => {
     try {
         const userId = req.user.uid;
 
+        // Simple query without orderBy to avoid composite index requirement
         const snapshot = await db.collection('visitSummaries')
             .where('userId', '==', userId)
-            .orderBy('createdAt', 'desc')
+            .limit(50)
             .get();
 
         const summaries = snapshot.docs.map(doc => {
@@ -21,17 +22,20 @@ router.get('/list', verifyToken, async (req, res) => {
                 documentId: data.documentId,
                 doctorSummary: data.doctorSummary,
                 patientSummary: data.patientSummary,
-                medications: data.medications,
-                followUps: data.followUps,
-                redFlags: data.redFlags,
+                medications: data.medications || [],
+                followUps: data.followUps || [],
+                redFlags: data.redFlags || [],
                 createdAt: data.createdAt
             };
         });
 
+        // Sort client-side by createdAt descending
+        summaries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
         res.json({ summaries });
     } catch (error) {
-        console.error('Error fetching visit summaries:', error);
-        res.status(500).json({ error: 'Failed to fetch summaries' });
+        console.error('Error fetching visit summaries:', error.message);
+        res.status(500).json({ error: 'Failed to fetch summaries', details: error.message });
     }
 });
 
@@ -40,34 +44,40 @@ router.get('/latest', verifyToken, async (req, res) => {
     try {
         const userId = req.user.uid;
 
+        // Simple query without orderBy to avoid composite index requirement
         const snapshot = await db.collection('visitSummaries')
             .where('userId', '==', userId)
-            .orderBy('createdAt', 'desc')
-            .limit(1)
+            .limit(10)
             .get();
 
         if (snapshot.empty) {
             return res.json({ summary: null });
         }
 
-        const doc = snapshot.docs[0];
-        const data = doc.data();
+        // Sort client-side and get the latest
+        const docs = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        docs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        const data = docs[0];
 
         res.json({
             summary: {
-                id: doc.id,
+                id: data.id,
                 documentId: data.documentId,
                 doctorSummary: data.doctorSummary,
                 patientSummary: data.patientSummary,
-                medications: data.medications,
-                followUps: data.followUps,
-                redFlags: data.redFlags,
+                medications: data.medications || [],
+                followUps: data.followUps || [],
+                redFlags: data.redFlags || [],
                 createdAt: data.createdAt
             }
         });
     } catch (error) {
-        console.error('Error fetching latest summary:', error);
-        res.status(500).json({ error: 'Failed to fetch summary' });
+        console.error('Error fetching latest summary:', error.message);
+        res.status(500).json({ error: 'Failed to fetch summary', details: error.message });
     }
 });
 
@@ -95,16 +105,17 @@ router.get('/:id', verifyToken, async (req, res) => {
                 documentId: data.documentId,
                 doctorSummary: data.doctorSummary,
                 patientSummary: data.patientSummary,
-                medications: data.medications,
-                followUps: data.followUps,
-                redFlags: data.redFlags,
+                medications: data.medications || [],
+                followUps: data.followUps || [],
+                redFlags: data.redFlags || [],
                 createdAt: data.createdAt
             }
         });
     } catch (error) {
-        console.error('Error fetching summary:', error);
-        res.status(500).json({ error: 'Failed to fetch summary' });
+        console.error('Error fetching summary:', error.message);
+        res.status(500).json({ error: 'Failed to fetch summary', details: error.message });
     }
 });
 
 export default router;
+

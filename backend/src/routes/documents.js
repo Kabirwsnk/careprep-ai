@@ -54,8 +54,33 @@ const upload = multer({
     }
 });
 
+// Error handler for multer
+const handleMulterError = (err, req, res, next) => {
+    if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+        }
+        return res.status(400).json({ error: `Upload error: ${err.message}` });
+    } else if (err) {
+        return res.status(400).json({ error: err.message });
+    }
+    next();
+};
+
 // POST /documents/upload - Upload a document
-router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
+router.post('/upload', verifyToken, (req, res, next) => {
+    upload.single('file')(req, res, (err) => {
+        if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({ error: 'File size exceeds 10MB limit' });
+            }
+            return res.status(400).json({ error: `Upload error: ${err.message}` });
+        } else if (err) {
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}, async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -64,6 +89,8 @@ router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
         const userId = req.user.uid;
         const file = req.file;
         const fileId = path.basename(file.filename, path.extname(file.filename));
+
+        console.log(`Uploading file for user ${userId}: ${file.originalname}`);
 
         const documentData = {
             userId,
@@ -79,6 +106,8 @@ router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
 
         const docRef = await db.collection('documents').add(documentData);
 
+        console.log(`Document saved to Firestore: ${docRef.id}`);
+
         res.status(201).json({
             success: true,
             id: docRef.id,
@@ -86,7 +115,7 @@ router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
         });
     } catch (error) {
         console.error('Error uploading document:', error);
-        res.status(500).json({ error: 'Failed to upload document' });
+        res.status(500).json({ error: 'Failed to upload document', details: error.message });
     }
 });
 
@@ -95,9 +124,10 @@ router.get('/list', verifyToken, async (req, res) => {
     try {
         const userId = req.user.uid;
 
+        // Simple query without orderBy to avoid composite index requirement
         const snapshot = await db.collection('documents')
             .where('userId', '==', userId)
-            .orderBy('createdAt', 'desc')
+            .limit(100)
             .get();
 
         const documents = snapshot.docs.map(doc => {
@@ -113,10 +143,13 @@ router.get('/list', verifyToken, async (req, res) => {
             };
         });
 
+        // Sort client-side by createdAt descending
+        documents.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
         res.json({ documents });
     } catch (error) {
         console.error('Error fetching documents:', error);
-        res.status(500).json({ error: 'Failed to fetch documents' });
+        res.status(500).json({ error: 'Failed to fetch documents', details: error.message });
     }
 });
 
