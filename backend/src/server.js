@@ -1,5 +1,5 @@
-import express from 'express';
 import cors from 'cors';
+import express from 'express';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import symptomsRoutes from './routes/symptoms.js';
@@ -22,17 +22,11 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 app.use(cors({
-    origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            console.log('Blocked by CORS:', origin);
-            callback(null, true); // Allow all for hackathon demo
-        }
-    },
+    origin: [
+        "http://localhost:5173",
+        "https://careprep-ai-frontend.vercel.app"
+    ],
+    methods: ["GET", "POST"],
     credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
