@@ -127,60 +127,56 @@ router.post('/chat', verifyToken, async (req, res) => {
             response: aiResponse.data.response
         });
     } catch (error) {
-        console.error('Error in chat:', error);
-
-        if (error.code === 'ECONNREFUSED') {
-            // Fallback response when AI service is unavailable
-            const fallbackResponse = `I apologize, but I'm currently unable to process your request. The AI service is temporarily unavailable.
-
-Please try again in a few moments, or contact support if the issue persists.
-
-**Important Reminder:** This is an educational tool only. For any medical concerns, please consult with a qualified healthcare professional.`;
-
-            return res.json({
-                success: true,
-                response: fallbackResponse
+        if (error.response?.status === 429) {
+            return res.status(429).json({
+                error: "Too many requests. Please wait 1 minute and try again."
             });
         }
 
-        res.status(500).json({ error: 'Failed to process chat message' });
-    }
-});
+        console.error("Chat error:", error.message);
 
-// GET /ai/summary - Get latest AI summary for user
-router.get('/summary', verifyToken, async (req, res) => {
-    try {
-        const userId = req.user.uid;
-
-        const snapshot = await db.collection('visitSummaries')
-            .where('userId', '==', userId)
-            .orderBy('createdAt', 'desc')
-            .limit(1)
-            .get();
-
-        if (snapshot.empty) {
-            return res.json({ summary: null });
+        if (error.code === 'ECONNREFUSED') {
+            const fallbackResponse = "I apologize, but I'm currently unable to process your request. The AI service is temporarily unavailable. Please try again in a few moments.";
+            return res.json({ success: true, response: fallbackResponse });
         }
 
-        const doc = snapshot.docs[0];
-        const data = doc.data();
-
-        res.json({
-            summary: {
-                id: doc.id,
-                documentId: data.documentId,
-                doctorSummary: data.doctorSummary,
-                patientSummary: data.patientSummary,
-                medications: data.medications,
-                followUps: data.followUps,
-                redFlags: data.redFlags,
-                createdAt: data.createdAt
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching AI summary:', error);
-        res.status(500).json({ error: 'Failed to fetch summary' });
+        res.status(500).json({ error: "Chat service failed" });
     }
-});
 
-export default router;
+    // GET /ai/summary - Get latest AI summary for user
+    router.get('/summary', verifyToken, async (req, res) => {
+        try {
+            const userId = req.user.uid;
+
+            const snapshot = await db.collection('visitSummaries')
+                .where('userId', '==', userId)
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get();
+
+            if (snapshot.empty) {
+                return res.json({ summary: null });
+            }
+
+            const doc = snapshot.docs[0];
+            const data = doc.data();
+
+            res.json({
+                summary: {
+                    id: doc.id,
+                    documentId: data.documentId,
+                    doctorSummary: data.doctorSummary,
+                    patientSummary: data.patientSummary,
+                    medications: data.medications,
+                    followUps: data.followUps,
+                    redFlags: data.redFlags,
+                    createdAt: data.createdAt
+                }
+            });
+        } catch (error) {
+            console.error('Error fetching AI summary:', error);
+            res.status(500).json({ error: 'Failed to fetch summary' });
+        }
+    });
+
+    export default router;
