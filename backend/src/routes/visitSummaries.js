@@ -1,11 +1,23 @@
 import express from 'express';
 import { verifyToken } from '../middleware/authMiddleware.js';
-import { db } from '../config/firebaseAdmin.js';
+import { db, isFirebaseReady } from '../config/firebaseAdmin.js';
 
 const router = express.Router();
 
+// Middleware to check if Firebase is ready
+const checkFirebase = (req, res, next) => {
+    if (!isFirebaseReady() || !db) {
+        console.error('❌ Firebase not initialized - cannot process visit summaries request');
+        return res.status(503).json({
+            error: 'Database service unavailable',
+            details: 'Firebase is not properly initialized. Please check server configuration.'
+        });
+    }
+    next();
+};
+
 // GET /visit-summaries/list - Get all visit summaries
-router.get('/list', verifyToken, async (req, res) => {
+router.get('/list', verifyToken, checkFirebase, async (req, res) => {
     try {
         const userId = req.user.uid;
 
@@ -40,7 +52,7 @@ router.get('/list', verifyToken, async (req, res) => {
 });
 
 // GET /visit-summaries/latest - Get latest visit summary
-router.get('/latest', verifyToken, async (req, res) => {
+router.get('/latest', verifyToken, checkFirebase, async (req, res) => {
     try {
         const userId = req.user.uid;
 
@@ -82,7 +94,7 @@ router.get('/latest', verifyToken, async (req, res) => {
 });
 
 // GET /visit-summaries/:id - Get specific visit summary
-router.get('/:id', verifyToken, async (req, res) => {
+router.get('/:id', verifyToken, checkFirebase, async (req, res) => {
     try {
         const { id } = req.params;
         const userId = req.user.uid;
